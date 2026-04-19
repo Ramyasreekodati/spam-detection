@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+requests
+streamlit
+imapclient
+mail-parser
+google-generativeai
+python-dotenv
