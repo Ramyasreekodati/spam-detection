@@ -1,13 +1,11 @@
+# Use a lighter python image
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Only install basic essentials if absolutely needed (usually not for simple python apps)
 RUN apt-get update && apt-get install -y \
-    build-essential \
     curl \
-    software-properties-common \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python requirements
