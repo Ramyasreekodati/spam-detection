@@ -1,13 +1,19 @@
 import streamlit as st
 import pandas as pd
-import requests
-import time
 import os
+import time
 from datetime import datetime
 from dotenv import load_dotenv
+from src.frontend.services.api_client import APIClient
 
-# Load ENV
+# Load ENV & Configuration
 load_dotenv()
+API_KEY = os.getenv("API_KEY")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+# Initialize API Client
+if "api_client" not in st.session_state:
+    st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
 
 # Page Config
 st.set_page_config(page_title="AI Agentic Security Dashboard", layout="wide", page_icon="🛡️")
@@ -80,52 +86,29 @@ with st.sidebar:
     st.markdown("### 🔐 Connection")
     gmail_user = st.text_input("Gmail Address", placeholder="example@gmail.com")
     app_pass = st.text_input("App Password", type="password", help="16-digit Google App Password")
-    backend_url = st.text_input("API Backend", value="http://localhost:8000")
-    api_backend_key = os.getenv("API_KEY")
-    api_key = st.text_input("X-API-KEY", type="password", value=api_backend_key if api_backend_key else "", help="This should be loaded automatically from your .env file.")
     
+    # Auto-load API Key from ENV
+    api_key = API_KEY
     if not api_key:
-        st.error("🔑 API Key Missing! Check your .env file.")
+        st.error("🔑 API_KEY not found in .env")
     else:
-        # Masked debug log for verification
-        masked_fe_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "****"
-        st.sidebar.caption(f"Backend Auth Active: {masked_fe_key}")
-    
-    with st.expander("❓ How to get App Password"):
-        st.markdown("""
-        1. Enable 2FA on your Google Account.
-        2. Go to [App Passwords](https://myaccount.google.com/apppasswords).
-        3. Create a new app name (e.g. 'Spam Finder').
-        4. Copy the 16-character code here.
-        5. **Note:** Ensure IMAP is enabled in Gmail Settings > Forwarding and POP/IMAP.
-        """)
-    
+        st.sidebar.success("📡 Cloud Auth Active")
+
     st.divider()
     st.markdown("### 💬 Quick Assistant")
     q_query = st.text_area("Is this safe?", placeholder="Paste snippet here...")
     if st.button("Ask Assistant"):
-        if not api_key:
-            st.warning("⚠️ Please provide an API Key in the sidebar.")
-            st.stop()
-        
-        q_query = q_query.strip()
         if q_query:
-            try:
-                headers = {"x-api-key": api_key}
-                res = requests.post(f"{backend_url}/webhook", json={"sessionId": "q", "message": {"sender": "user", "text": q_query, "timestamp": ""}}, headers=headers, timeout=5)
-                if res.status_code == 401:
-                    st.error("🔑 API Key Mismatch: Unauthorized Access.")
-                    st.stop()
-                res.raise_for_status()
-                data = res.json()
-                lvl = data.get('threatLevel', 'UNKNOWN')
-                status = "🔴 HIGH RISK" if lvl == "HIGH" else ("🟡 SUSPICIOUS" if lvl in ["MEDIUM", "LOW"] else "🟢 SAFE")
-                st.write(f"**Result:** {status}")
-                if data.get('source') == "FALLBACK": st.info("Backup analysis active.")
-            except Exception as e: 
-                st.error(f"Offline or Error: {e}")
-        else:
-            st.warning("Please enter text.")
+            with st.spinner("Analyzing..."):
+                data = st.session_state.api_client.analyze_message(q_query, session_id="quick-check")
+                
+                if "error" not in data:
+                    lvl = data.get('threatLevel', 'UNKNOWN')
+                    st.info(f"Team Verdict: {lvl}")
+                    st.write(data.get('agentResponse'))
+                else:
+                    st.error(data["error"])
+        else: st.warning("Please enter text.")
 
 # Main Dashboard
 st.markdown("<h1 class='main-title'>🛡️ AI Agentic Security Dashboard</h1>", unsafe_allow_html=True)
@@ -148,7 +131,38 @@ tab_dashboard, tab_monitor, tab_assistant, tab_analytics = st.tabs(["📊 Dashbo
 
 with tab_dashboard:
     if not gmail_user or not app_pass:
-        st.error("❌ Please enter your Gmail address and App Password in the sidebar.")
+        st.markdown("""
+            <div class='glass-card'>
+                <h3 style='color:#3a7bd5;'>👋 Welcome to AI Security Dashboard</h3>
+                <p>To start scanning your emails for threats, you need to connect your Gmail account securely. Follow these 3 quick steps:</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        with st.expander("🛠️ STEP 1: Enable 2-Step Verification", expanded=True):
+            st.write("Google requires 2-Step Verification to be active before you can create an App Password.")
+            st.link_button("Go to Google Security Settings", "https://myaccount.google.com/security")
+            st.caption("Ensure '2-Step Verification' is marked as ON.")
+
+        with st.expander("🔑 STEP 2: Generate App Password"):
+            st.write("Instead of your regular password, you must use a unique 16-digit 'App Password'.")
+            st.markdown("""
+            1. Search for **'App Passwords'** in your Google Account search bar.
+            2. Select **'Mail'** and **'Other (Custom name)'**.
+            3. Name it `AI Security Dashboard` and click **Generate**.
+            4. Copy the **16-digit code** and paste it into the sidebar here.
+            """)
+            st.link_button("Generate App Password", "https://myaccount.google.com/apppasswords")
+
+        with st.expander("📡 STEP 3: Enable IMAP Access"):
+            st.write("This allows our AI Agent to read and audit your emails for security threats.")
+            st.markdown("""
+            1. Open **Gmail Settings** in your browser.
+            2. Go to the **'Forwarding and POP/IMAP'** tab.
+            3. Select **'Enable IMAP'** and click **Save Changes**.
+            """)
+            st.link_button("Open Gmail IMAP Settings", "https://mail.google.com/mail/u/0/#settings/fwdandimap")
+            
+        st.info("💡 Once you've completed these steps, enter your credentials in the sidebar to unlock the dashboard.")
         st.stop()
     
     if not api_key:
@@ -162,10 +176,22 @@ with tab_dashboard:
             from email.header import decode_header
             
             with st.spinner("Connecting to IMAP..."):
-                add_log(f"Initializing IMAP connection to {gmail_user}...")
-                mail = imaplib.IMAP4_SSL("imap.gmail.com")
-                mail.login(gmail_user, app_pass)
-                mail.select("inbox")
+                # Clean credentials using regex to remove ALL hidden whitespace
+                import re
+                user_clean = gmail_user.strip()
+                pass_clean = re.sub(r'\s+', '', app_pass).strip()
+                
+                add_log(f"Initializing IMAP connection to {user_clean}...")
+                try:
+                    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+                    mail.login(user_clean, pass_clean)
+                    mail.select("inbox")
+                except Exception as e:
+                    if "AUTHENTICATIONFAILED" in str(e):
+                        st.error("❌ **Login Failed.** Please ensure:\n1. **IMAP is enabled** in Gmail Settings.\n2. You are using a **16-digit App Password**, not your regular password.\n3. Your email address is correct.")
+                    else:
+                        st.error(f"❌ IMAP Error: {e}")
+                    st.stop()
             
             _, messages = mail.search(None, 'ALL')
             ids = messages[0].split()[-20:] # Reduced to 20 for faster scan
@@ -206,26 +232,19 @@ with tab_dashboard:
                         
                         add_log(f"Analyzing: {subject[:30]}...")
                         
-                        # Call API
-                        payload = {
-                            "sessionId": f"scan-{e_id.decode()}",
-                            "message": {"sender": sender, "text": body[:2000], "timestamp": datetime.now().isoformat()}
-                        }
-                        try:
-                            headers = {"x-api-key": api_key}
-                            res = requests.post(f"{backend_url}/webhook", json=payload, headers=headers, timeout=15)
-                            if res.status_code == 401:
-                                add_log("❌ Error: 401 Unauthorized - Check API Key.")
-                                st.error("🔑 API Key Error: Dashboard Access Denied.")
-                                st.stop()
-                            res.raise_for_status()
-                            analysis = res.json()
-                        except Exception as api_err:
-                            add_log(f"API Error: {api_err}")
+                        analysis = st.session_state.api_client.scan_email(
+                            email_id=e_id.decode(),
+                            sender=sender,
+                            subject=subject,
+                            body=body[:2000]
+                        )
+                        
+                        if "error" in analysis:
+                            add_log(f"⚠️ Analysis Failed for {e_id}: {analysis['error']}")
                             analysis = {
-                                "scamDetected": False, "threatLevel": "UNKNOWN", "riskScore": 0, 
-                                "confidence": 0, "agentNotes": f"Connection Error: {api_err}", "agentReports": [],
-                                "extractedIntelligence": {}, "source": "ERROR"
+                                "scamDetected": False, "threatLevel": "ERROR", "riskScore": 0, 
+                                "confidence": 0, "agentNotes": analysis['error'], "agentReports": [],
+                                "extractedIntelligence": {}, "source": "TIMEOUT"
                             }
                         
                         email_data = {
@@ -248,10 +267,21 @@ with tab_dashboard:
     except Exception as e:
         st.error(f"Scan Failed: {e}")
 
-    # Display Feed
+    # Display Feed with Filtering
+    st.markdown("---")
+    c1, c2 = st.columns([3, 1])
+    with c1: st.markdown("### 🗂️ Analysis Feed")
+    with c2: filter_lvl = st.selectbox("Filter By:", ["All", "High Risk", "Suspicious", "Safe"])
+    
     for e in reversed(st.session_state.emails):
         analysis = e.get('analysis', {})
         lvl = analysis.get('threatLevel', 'UNKNOWN')
+        
+        # Apply Filter
+        if filter_lvl == "High Risk" and lvl != "HIGH": continue
+        if filter_lvl == "Suspicious" and lvl not in ["MEDIUM", "LOW"]: continue
+        if filter_lvl == "Safe" and lvl != "SAFE": continue
+
         color = "#ff3b30" if lvl == "HIGH" else ("#ff9f0a" if lvl in ["MEDIUM", "LOW"] else "#34c759")
         icon = "🚨" if lvl == "HIGH" else ("⚠️" if lvl in ["MEDIUM", "LOW"] else "✅")
         status_label = "HIGH RISK" if lvl == "HIGH" else ("SUSPICIOUS" if lvl in ["MEDIUM", "LOW"] else ("SAFE" if lvl == "SAFE" else "UNKNOWN"))
@@ -294,15 +324,9 @@ with tab_assistant:
         user_input = user_input.strip()
         if user_input:
             with st.spinner("🕵️‍♂️ Investigating..."):
-                try:
-                    headers = {"x-api-key": api_key}
-                    res = requests.post(f"{backend_url}/webhook", json={"sessionId": "assistant", "message": {"sender": "user", "text": user_input, "timestamp": ""}}, headers=headers, timeout=20)
-                    if res.status_code == 401:
-                        st.error("🔑 401 Unauthorized: The API Key provided in the sidebar is incorrect.")
-                        st.stop()
-                    res.raise_for_status()
-                    data = res.json()
-                    
+                data = st.session_state.api_client.analyze_message(user_input, session_id="assistant-tab")
+                
+                if "error" not in data:
                     lvl = data.get('threatLevel', 'UNKNOWN')
                     score = data.get('riskScore', 0)
                     if lvl == "HIGH": st.error(f"🚨 HIGH RISK DETECTED ({score}%)")
@@ -314,29 +338,38 @@ with tab_assistant:
                     st.markdown(f"**Reasoning:** {data.get('agentNotes', 'No additional notes.')}")
                     st.markdown("**Evidence Found:**")
                     st.json(data.get('extractedIntelligence', {}))
-                except Exception as e:
-                    st.error(f"Failed to reach AI Backend: {e}")
+                else:
+                    st.error(data["error"])
         else: st.warning("Please enter some text.")
 
 with tab_analytics:
-    st.markdown("### 📈 Risk Distribution Analysis")
+    st.markdown("### 🧬 Multi-Agent Forensic Distribution")
     if st.session_state.emails:
-        # Create a list of dicts with subject and risk score
-        chart_data = []
-        for e in st.session_state.emails:
-            subj = e.get('subject', 'No Subject')
-            # Truncate for display
-            display_name = (subj[:25] + '...') if len(subj) > 25 else subj
-            chart_data.append({
-                "Email": display_name,
-                "Risk Score (%)": e.get('analysis', {}).get('riskScore', 0)
-            })
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            st.markdown("**🛡️ Risk Level Distribution**")
+            df_risk = pd.DataFrame([{"Level": e['analysis']['threatLevel']} for e in st.session_state.emails])
+            st.bar_chart(df_risk['Level'].value_counts())
             
-        df = pd.DataFrame(chart_data)
-        st.bar_chart(df, x="Email", y="Risk Score (%)", use_container_width=True)
+        with c2:
+            st.markdown("**🤖 Agent Participation**")
+            all_reports = []
+            for e in st.session_state.emails:
+                for report in e['analysis'].get('agentReports', []):
+                    all_reports.append(report)
+            if all_reports:
+                df_agents = pd.DataFrame(all_reports)
+                st.bar_chart(df_agents['agent_name'].value_counts())
         
         st.markdown("---")
-        st.markdown("**Detailed Risk Table**")
-        st.table(df)
+        st.markdown("**📋 Detailed Risk Analysis**")
+        df_table = pd.DataFrame([{
+            "Subject": e['subject'][:30] + "...",
+            "Threat": e['analysis']['threatLevel'],
+            "Score": f"{e['analysis']['riskScore']}%",
+            "Agents": len(e['analysis'].get('agentReports', []))
+        } for e in st.session_state.emails])
+        st.dataframe(df_table, use_container_width=True)
     else:
-        st.info("No scan data available yet. Run a scan from the Dashboard tab.")
+        st.info("No scan data available. Run an audit to see forensics.")
