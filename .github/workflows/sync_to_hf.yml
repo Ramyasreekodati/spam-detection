@@ -15,4 +15,4 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://Ramyasreekodati:$HF_TOKEN@huggingface.co/spaces/Ramyasreekodati/i-spam-finder main
+        run: git push --force https://kodatiramyasree:$HF_TOKEN@huggingface.co/spaces/kodatiramyasree/ai-spam-finder main
