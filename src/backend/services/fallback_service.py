@@ -40,7 +40,10 @@ class FallbackEngine:
         findings["phoneNumbers"] = re.findall(r'\+?\d{10,12}', text)
         
         # 4. Bank/UPI (with Context Logic)
-        findings["upiIds"] = re.findall(r'[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}', text)
+        # Improved UPI regex: Excludes common email domains to prevent false financial flags
+        all_handles = re.findall(r'[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}', text)
+        common_email_domains = ['gmail', 'yahoo', 'outlook', 'hotmail', 'icloud', 'protonmail']
+        findings["upiIds"] = [h for h in all_handles if not any(dom in h.lower() for dom in common_email_domains)]
         
         # Stricter Bank Detection: Only if context words exist
         potential_accounts = re.findall(r'\b\d{11,16}\b', text)
@@ -88,7 +91,7 @@ class FallbackEngine:
         else: level = "SAFE"
         
         return {
-            "scamDetected": risk_score > 40, # High enough to ignore minor noise
+            "scamDetected": risk_score > 30, # Aligned with LOW threshold for consistency
             "threatLevel": level,
             "riskScore": risk_score,
             "confidence": 0.7,

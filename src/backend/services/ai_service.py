@@ -19,7 +19,7 @@ class AIService:
         try:
             if self.api_key:
                 genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model = genai.GenerativeModel('gemini-flash-latest')
                 logger.info("✨ AI Engine Initialized Successfully")
             else:
                 logger.warning("⚠️ GEMINI_API_KEY missing. AI features will be disabled.")
