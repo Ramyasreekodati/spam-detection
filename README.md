@@ -1,3 +1,12 @@
+---
+title: AI Agentic Security Dashboard
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # Agentic Honey-Pot for Scam Detection & Intelligence Extraction
 
 This project is an AI-powered honeypot system designed to detect scam intent in emails and autonomously extract intelligence. It consists of a FastAPI backend and a Streamlit dashboard.
