@@ -55,3 +55,10 @@ The dashboard will open in your browser.
 ## 📝 API Endpoints
 - `POST /webhook`: Accepts message events for scam analysis.
 - **Callback**: Automatically sends final intelligence to `https://hackathon.guvi.in/api/updateHoneyPotFinalResult` when a scam is confirmed.
+
+## 📄 Resume Highlights
+If you are adding this project to your resume, here are some key points:
+- **AI Scam Detection:** Built an autonomous agent using **Gemini Pro** to detect scam intent and extract malicious data (UPI, Banks, URLs) in real-time.
+- **Backend & Integration:** Developed a **FastAPI** engine with **IMAP email integration** and automated webhook reporting for instant threat intelligence.
+- **Security Dashboard:** Created a premium **Streamlit** UI for live risk monitoring, forensic deep-dives, and automated activity tracking.
+- **Docker & Cloud:** Containerized with **Docker** and deployed via **GitHub Actions** to Hugging Face for automated CI/CD and cloud scalability.
