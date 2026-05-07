@@ -9,7 +9,7 @@ from src.frontend.services.api_client import APIClient
 # Load ENV & Configuration
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://192.168.1.12:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # Initialize API Client
 st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
@@ -169,100 +169,121 @@ with tab_dashboard:
         st.stop()
 
     try:
-        if st.button("🚀 INITIALIZE GLOBAL SCAN", use_container_width=True):
-            import imaplib
-            import email
-            from email.header import decode_header
+    if st.button("🚀 INITIALIZE GLOBAL SCAN", use_container_width=True):
+        import imaplib
+        import email
+        from email.header import decode_header
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        with st.spinner("Connecting to IMAP..."):
+            import re
+            user_clean = gmail_user.strip()
+            pass_clean = re.sub(r'\s+', '', app_pass).strip()
             
-            with st.spinner("Connecting to IMAP..."):
-                # Clean credentials using regex to remove ALL hidden whitespace
-                import re
-                user_clean = gmail_user.strip()
-                pass_clean = re.sub(r'\s+', '', app_pass).strip()
-                
-                add_log(f"Initializing IMAP connection to {user_clean}...")
-                try:
-                    mail = imaplib.IMAP4_SSL("imap.gmail.com")
-                    mail.login(user_clean, pass_clean)
-                    mail.select("inbox")
-                except Exception as e:
-                    if "AUTHENTICATIONFAILED" in str(e):
-                        st.error("❌ **Login Failed.** Please ensure:\n1. **IMAP is enabled** in Gmail Settings.\n2. You are using a **16-digit App Password**, not your regular password.\n3. Your email address is correct.")
+            add_log(f"Initializing IMAP connection to {user_clean}...")
+            try:
+                mail = imaplib.IMAP4_SSL("imap.gmail.com")
+                mail.login(user_clean, pass_clean)
+                mail.select("inbox")
+            except Exception as e:
+                if "AUTHENTICATIONFAILED" in str(e):
+                    st.error("❌ **Login Failed.** Please ensure your App Password and IMAP settings are correct.")
+                else:
+                    st.error(f"❌ IMAP Error: {e}")
+                st.stop()
+        
+        _, messages = mail.search(None, 'ALL')
+        ids = messages[0].split()[-50:] # Last 50 emails
+        
+        add_log(f"Found {len(ids)} emails. Fetching content...")
+        
+        # 1. Faster Fetching: Fetch all 50 emails in one go
+        if ids:
+            fetch_ids = b",".join(ids)
+            _, msg_data = mail.fetch(fetch_ids, "(RFC822)")
+            
+            parsed_emails = []
+            for response_part in msg_data:
+                if isinstance(response_part, tuple):
+                    msg = email.message_from_bytes(response_part[1])
+                    
+                    # Extract Subject
+                    raw_subject = msg.get("Subject")
+                    subject = ""
+                    if raw_subject:
+                        decoded_parts = decode_header(raw_subject)
+                        for content, encoding in decoded_parts:
+                            if isinstance(content, bytes):
+                                subject += content.decode(encoding or "utf-8", errors="ignore")
+                            else:
+                                subject += str(content)
+                    
+                    sender = msg.get("From", "Unknown Sender")
+                    body = ""
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            if part.get_content_type() == "text/plain":
+                                payload = part.get_payload(decode=True)
+                                if payload: body = payload.decode(errors="ignore")
                     else:
-                        st.error(f"❌ IMAP Error: {e}")
-                    st.stop()
-            
-            _, messages = mail.search(None, 'ALL')
-            ids = messages[0].split()[-50:] # Increased to 50 as requested
-            
-            add_log(f"Found {len(ids)} emails. Starting Multi-Agent Audit...")
+                        payload = msg.get_payload(decode=True)
+                        if payload: body = payload.decode(errors="ignore")
+                    
+                    parsed_emails.append({
+                        "subject": subject,
+                        "from": sender,
+                        "body": body,
+                        "raw_id": "batch"
+                    })
+
+            # 2. Parallel AI Analysis
+            add_log(f"Starting Multi-Agent Parallel Audit (5 workers)...")
             progress_bar = st.progress(0)
+            status_text = st.empty()
             
-            for idx, e_id in enumerate(reversed(ids)):
-                progress_val = (idx + 1) / len(ids)
-                progress_bar.progress(progress_val)
+            def analyze_task(email_item):
+                return st.session_state.api_client.scan_email(
+                    email_id="batch",
+                    sender=email_item["from"],
+                    subject=email_item["subject"],
+                    body=email_item["body"][:2000]
+                ), email_item
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(analyze_task, e): e for e in parsed_emails}
                 
-                _, msg_data = mail.fetch(e_id, "(RFC822)")
-                for response_part in msg_data:
-                    if isinstance(response_part, tuple):
-                        msg = email.message_from_bytes(response_part[1])
-                        
-                        # Robust Subject Decoding
-                        raw_subject = msg.get("Subject")
-                        subject = ""
-                        if raw_subject:
-                            decoded_parts = decode_header(raw_subject)
-                            for content, encoding in decoded_parts:
-                                if isinstance(content, bytes):
-                                    subject += content.decode(encoding or "utf-8", errors="ignore")
-                                else:
-                                    subject += str(content)
-                        
-                        sender = msg.get("From", "Unknown Sender")
-                        body = ""
-                        if msg.is_multipart():
-                            for part in msg.walk():
-                                if part.get_content_type() == "text/plain":
-                                    payload = part.get_payload(decode=True)
-                                    if payload: body = payload.decode(errors="ignore")
-                        else:
-                            payload = msg.get_payload(decode=True)
-                            if payload: body = payload.decode(errors="ignore")
-                        
-                        add_log(f"Analyzing: {subject[:30]}...")
-                        
-                        analysis = st.session_state.api_client.scan_email(
-                            email_id=e_id.decode(),
-                            sender=sender,
-                            subject=subject,
-                            body=body[:2000]
-                        )
-                        
-                        if "error" in analysis:
-                            add_log(f"⚠️ Analysis Failed for {e_id}: {analysis['error']}")
-                            analysis = {
-                                "scamDetected": False, "threatLevel": "ERROR", "riskScore": 0, 
-                                "confidence": 0, "agentNotes": analysis['error'], "agentReports": [],
-                                "extractedIntelligence": {}, "source": "TIMEOUT"
-                            }
-                        
-                        email_data = {
-                            "id": idx,
-                            "subject": subject,
-                            "from": sender,
-                            "body": body[:500],
-                            "analysis": analysis
+                for idx, future in enumerate(as_completed(futures)):
+                    analysis, email_item = future.result()
+                    
+                    if "error" in analysis:
+                        add_log(f"⚠️ Analysis Failed for {email_item['subject'][:20]}: {analysis['error']}")
+                        analysis = {
+                            "scamDetected": False, "threatLevel": "ERROR", "riskScore": 0, 
+                            "confidence": 0, "agentNotes": analysis['error'], "agentReports": [],
+                            "extractedIntelligence": {}, "source": "TIMEOUT"
                         }
-                        
-                        st.session_state.emails.append(email_data)
-                        # Memory management for emails
-                        if len(st.session_state.emails) > 50:
-                            st.session_state.emails.pop(0)
-                        
-            mail.logout()
-            add_log("Scan Complete.")
-            st.success("✅ Global Scan Completed!")
-            st.rerun()
+                    
+                    st.session_state.emails.append({
+                        "id": len(st.session_state.emails),
+                        "subject": email_item["subject"],
+                        "from": email_item["from"],
+                        "body": email_item["body"][:500],
+                        "analysis": analysis
+                    })
+                    
+                    # Update Progress
+                    progress_val = (idx + 1) / len(parsed_emails)
+                    progress_bar.progress(progress_val)
+                    status_text.text(f"Processed {idx+1}/{len(parsed_emails)} emails...")
+
+            # Clean up session state to keep only last 50
+            if len(st.session_state.emails) > 50:
+                st.session_state.emails = st.session_state.emails[-50:]
+
+        mail.logout()
+        add_log("Scan Complete.")
+        st.success("✅ Global Scan Completed!")
+        st.rerun()
     except Exception as e:
         st.error(f"Scan Failed: {e}")
 
