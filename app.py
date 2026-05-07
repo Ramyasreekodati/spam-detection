@@ -11,7 +11,7 @@ from src.frontend.services.api_client import APIClient
 # Load ENV & Configuration
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
 # Initialize API Client
 if "api_client" not in st.session_state:
@@ -91,7 +91,18 @@ with st.sidebar:
     if not api_key:
         st.error("🔑 API_KEY not found in .env")
     else:
-        st.sidebar.success("📡 Cloud Auth Active")
+        # Check backend connectivity
+        try:
+            import requests
+            health = requests.get(f"{BACKEND_URL}/", timeout=2)
+            if health.status_code == 200:
+                st.sidebar.success("📡 Backend: ONLINE")
+            else:
+                st.sidebar.warning(f"📡 Backend: HTTP {health.status_code}")
+        except:
+            st.sidebar.error("📡 Backend: OFFLINE")
+        
+        st.sidebar.info("🔑 Cloud Auth Active")
 
     st.divider()
     st.markdown("### 💬 Quick Assistant")

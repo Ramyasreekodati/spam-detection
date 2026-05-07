@@ -18,6 +18,10 @@ app = FastAPI(title="Agentic Honey-Pot API - Modular Version")
 ai_service = AIService()
 API_KEY = os.getenv("API_KEY")
 
+@app.get("/")
+async def health_check():
+    return {"status": "online", "message": "Security Backend is running"}
+
 def verify_api_key(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API Key")
