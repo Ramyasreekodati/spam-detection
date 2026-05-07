@@ -101,6 +101,11 @@ with st.sidebar:
                 st.sidebar.warning(f"📡 Backend: HTTP {health.status_code}")
         except:
             st.sidebar.error("📡 Backend: OFFLINE")
+            # Log Viewer for debugging
+            if os.path.exists("backend.log"):
+                with st.sidebar.expander("📄 View Debug Logs"):
+                    with open("backend.log", "r") as f:
+                        st.code(f.read()[-2000:], language="text")
         
         st.sidebar.info("🔑 Cloud Auth Active")
 

@@ -2,7 +2,7 @@
 
 # 1. Start the FastAPI backend in the background
 # We bind to 0.0.0.0:8000 so the frontend can reach it
-python3 backend.py > backend.log 2>&1 &
+PORT=8000 python3 backend.py > backend.log 2>&1 &
 
 # 2. Wait a few seconds for the backend to initialize
 sleep 5
