@@ -115,4 +115,8 @@ class AIService:
                 logger.warning(f"AI Attempt {attempt+1} failed: {e}")
                 if attempt < retries: await asyncio.sleep(1)
 
-        return FallbackEngine.analyze(text)
+        # Final Fallback if all attempts fail
+        fallback = FallbackEngine.analyze(text)
+        error_msg = "AI Generation Failed (Rate Limit or Safety)"
+        fallback["agentNotes"] = f"⚠️ {error_msg} | {fallback['agentNotes']}"
+        return fallback
