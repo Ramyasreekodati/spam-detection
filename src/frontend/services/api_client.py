@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 
 class APIClient:
-    def __init__(self, backend_url="http://127.0.0.1:8000", api_key=None):
+    def __init__(self, backend_url="http://192.168.1.12:8000", api_key=None):
         self.backend_url = backend_url
         self.api_key = api_key or os.getenv("API_KEY")
 

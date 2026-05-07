@@ -9,7 +9,7 @@ from src.frontend.services.api_client import APIClient
 # Load ENV & Configuration
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://192.168.1.12:8000")
 
 # Initialize API Client
 st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
