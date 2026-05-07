@@ -238,7 +238,7 @@ with tab_dashboard:
                         })
 
                 # 2. Parallel AI Analysis
-                add_log(f"Starting Multi-Agent Parallel Audit (5 workers)...")
+                add_log(f"Starting Multi-Agent Parallel Audit (2 workers)...")
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -253,7 +253,7 @@ with tab_dashboard:
                         body=email_item["body"][:2000]
                     ), email_item
 
-                with ThreadPoolExecutor(max_workers=5) as executor:
+                with ThreadPoolExecutor(max_workers=2) as executor:
                     futures = {executor.submit(analyze_task, e, client): e for e in parsed_emails}
                     
                     for idx, future in enumerate(as_completed(futures)):

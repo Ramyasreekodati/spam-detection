@@ -32,7 +32,17 @@ class AIService:
         try:
             if self.api_key and len(self.api_key) > 10:
                 genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel('gemini-flash-latest')
+                # Disable safety filters to allow analysis of malicious/scam content
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                ]
+                self.model = genai.GenerativeModel(
+                    model_name='gemini-1.5-flash',
+                    safety_settings=safety_settings
+                )
                 logger.info("✨ AI Engine Initialized Successfully")
             else:
                 self.init_error = "GEMINI_API_KEY is missing or invalid."
