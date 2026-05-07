@@ -90,12 +90,28 @@ class FallbackEngine:
         elif risk_score > 30: level = "LOW"
         else: level = "SAFE"
         
+        # Detailed Reasoning for Transparency
+        triggers = []
+        if findings["suspiciousKeywords"]: triggers.append(f"Suspicious Keywords: {', '.join(findings['suspiciousKeywords'])}")
+        if findings["phishingLinks"]: triggers.append(f"Links Found: {len(findings['phishingLinks'])}")
+        if findings["phoneNumbers"]: triggers.append(f"Phone Numbers: {len(findings['phoneNumbers'])}")
+        if findings["upiIds"]: triggers.append(f"UPI IDs: {len(findings['upiIds'])}")
+        if findings["bankAccounts"]: triggers.append(f"Bank Accounts: {len(findings['bankAccounts'])}")
+        
+        reasoning = "Rule-based scan complete. "
+        if triggers:
+            reasoning += "Detected: " + " | ".join(triggers)
+        else:
+            reasoning += "No specific malicious patterns detected."
+        
+        if is_newsletter: reasoning += " (Identified as safe newsletter/automated mail)"
+
         return {
-            "scamDetected": risk_score > 30, # Aligned with LOW threshold for consistency
+            "scamDetected": risk_score > 30,
             "threatLevel": level,
             "riskScore": risk_score,
             "confidence": 0.7,
-            "agentNotes": "Calibrated rule-based scan complete." + (" (Newsletter detected)" if is_newsletter else ""),
+            "agentNotes": reasoning,
             "agentResponse": "I've analyzed this using my updated security heuristics.",
             "xaiExplanations": [f"Risk calibrated based on {len(unique_links)} links and domain trust."],
             "agentReports": [{"agent_name": "FallbackV2", "finding": "Heuristic calibration applied", "risk_contribution": risk_score}],
