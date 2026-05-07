@@ -12,6 +12,15 @@ logger = logging.getLogger("AIService")
 class AIService:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
+        # Fallback for Streamlit Cloud Secrets
+        if not self.api_key:
+            try:
+                import streamlit as st
+                if "GEMINI_API_KEY" in st.secrets:
+                    self.api_key = st.secrets["GEMINI_API_KEY"]
+            except:
+                pass
+                
         self.model = None
         self._initialize_model()
 
