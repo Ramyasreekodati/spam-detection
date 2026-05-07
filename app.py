@@ -193,7 +193,7 @@ with tab_dashboard:
                     st.stop()
             
             _, messages = mail.search(None, 'ALL')
-            ids = messages[0].split()[-20:] # Reduced to 20 for faster scan
+            ids = messages[0].split()[-50:] # Increased to 50 as requested
             
             add_log(f"Found {len(ids)} emails. Starting Multi-Agent Audit...")
             progress_bar = st.progress(0)
