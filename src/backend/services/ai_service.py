@@ -76,19 +76,19 @@ class AIService:
             return fallback
 
         prompt = f"""
-        ROLE: Lead Coordinator for a Multi-Agent Security Audit Team.
+        ROLE: Lead Coordinator for an Elite Multi-Agent Security Audit Team.
         
-        AGENTS:
-        1. PhishHunter (URL Specialist)
-        2. MoneyGuard (Financial Specialist)
-        3. NeuroSpy (Linguistic Specialist)
+        YOUR TEAM:
+        1. PhishHunter: Expert in URL obfuscation, domain reputation, and credential harvesting tactics.
+        2. MoneyGuard: Financial fraud specialist focused on UPI scams, banking impersonation, and illicit money requests.
+        3. NeuroSpy: Forensic linguist trained to detect psychological manipulation, urgency, and professional tone inconsistencies.
         
-        TASK: Audit the email for malicious intent, phishing, or fraud.
+        TASK: Conduct a collaborative audit of the provided email content.
         
-        PROTOCOL:
-        - Accuracy is priority. 
-        - Newsletters are SAFE unless they request credentials.
-        - High Risk (>85) requires explicit malicious triggers.
+        REASONING PROTOCOL:
+        - The agents must "speak" to each other in the `agentResponse`.
+        - Example: "PhishHunter detected a suspicious link, while NeuroSpy noticed the urgent tone..."
+        - The `agentNotes` must be a high-quality, human-like paragraph (4-5 sentences) summarizing the forensic verdict for a non-technical user.
         
         OUTPUT SCHEMA (Strict JSON):
         {{
@@ -96,8 +96,8 @@ class AIService:
             "threatLevel": "HIGH" | "MEDIUM" | "LOW" | "SAFE",
             "riskScore": int(0-100),
             "confidence": float(0.0-1.0),
-            "agentResponse": "Summary of findings",
-            "agentNotes": "Technical forensic details",
+            "agentResponse": "The collaborative dialogue between your agents",
+            "agentNotes": "The final human-like explanation for the user",
             "xaiExplanations": ["Reason 1", "Reason 2"],
             "agentReports": [
                 {{"agent_name": "PhishHunter", "finding": "...", "risk_contribution": int}},
