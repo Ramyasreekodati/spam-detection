@@ -13,9 +13,11 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
-# Initialize API Client
-if "api_client" not in st.session_state:
+# Initialize API Client with Force-Refresh on Secret Change
+current_key = st.secrets.get("GEMINI_API_KEY", "")
+if "api_client" not in st.session_state or st.session_state.get("last_key") != current_key:
     st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
+    st.session_state.last_key = current_key
 
 # Custom CSS for Premium Design
 st.markdown("""
