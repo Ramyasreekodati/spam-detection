@@ -91,22 +91,7 @@ with st.sidebar:
     if not api_key:
         st.error("🔑 API_KEY not found in .env")
     else:
-        # Check backend connectivity
-        try:
-            import requests
-            health = requests.get(f"{BACKEND_URL}/", timeout=2)
-            if health.status_code == 200:
-                st.sidebar.success("📡 Backend: ONLINE")
-            else:
-                st.sidebar.warning(f"📡 Backend: HTTP {health.status_code}")
-        except:
-            st.sidebar.error("📡 Backend: OFFLINE")
-            # Log Viewer for debugging
-            if os.path.exists("backend.log"):
-                with st.sidebar.expander("📄 View Debug Logs"):
-                    with open("backend.log", "r") as f:
-                        st.code(f.read()[-2000:], language="text")
-        
+        st.sidebar.success("📡 Internal AI Engine Active")
         st.sidebar.info("🔑 Cloud Auth Active")
 
     st.divider()

@@ -1,37 +1,34 @@
-import requests
 import os
 import time
+import asyncio
 from datetime import datetime
+from src.backend.services.ai_service import AIService
 
 class APIClient:
-    def __init__(self, backend_url="http://127.0.0.1:8000", api_key=None):
-        self.backend_url = backend_url
+    def __init__(self, backend_url=None, api_key=None):
         self.api_key = api_key or os.getenv("API_KEY")
+        # Initialize the AI Service directly inside the client for Streamlit Cloud
+        self.ai_service = AIService()
 
     def analyze_message(self, message_text, sender="user", session_id="assistant", retries=3):
-        url = f"{self.backend_url}/webhook"
-        headers = {"x-api-key": self.api_key}
-        payload = {
-            "sessionId": session_id,
-            "message": {
-                "sender": sender,
-                "text": message_text,
-                "timestamp": datetime.now().isoformat()
-            }
-        }
-
-        for attempt in range(retries):
+        try:
+            # Handle asyncio event loop for Streamlit integration
             try:
-                response = requests.post(url, json=payload, headers=headers, timeout=15)
-                if response.status_code == 200:
-                    return response.json()
-                elif response.status_code == 401:
-                    return {"error": "Authentication failed. Check your API key."}
-            except Exception as e:
-                if attempt == retries - 1:
-                    return {"error": f"Connection failed after {retries} attempts: {str(e)}"}
-                time.sleep(1)
-        return {"error": "Unknown error occurred during analysis."}
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Call AI service directly
+            if loop.is_running():
+                # If loop is already running (unlikely for sync calls in Streamlit but possible)
+                import nest_asyncio
+                nest_asyncio.apply()
+            
+            result = loop.run_until_complete(self.ai_service.analyze(message_text))
+            return result
+        except Exception as e:
+            return {"error": f"Internal AI Analysis failed: {str(e)}"}
 
     def scan_email(self, email_id, sender, subject, body):
         return self.analyze_message(

@@ -7,3 +7,4 @@ imapclient
 mail-parser
 google-generativeai
 python-dotenv
+nest-asyncio
