@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="AI Agentic Security Dashboard", layout="wide", page_icon="🛡️")
+
 import pandas as pd
 import os
 import time
@@ -12,10 +14,8 @@ API_KEY = os.getenv("API_KEY")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # Initialize API Client
-st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
-
-# Page Config
-st.set_page_config(page_title="AI Agentic Security Dashboard", layout="wide", page_icon="🛡️")
+if "api_client" not in st.session_state:
+    st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
 
 # Custom CSS for Premium Design
 st.markdown("""
@@ -241,8 +241,11 @@ with tab_dashboard:
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
-                def analyze_task(email_item):
-                    return st.session_state.api_client.scan_email(
+                # Pass api_client as a local variable to the task to avoid session_state thread issues
+                client = st.session_state.api_client
+                
+                def analyze_task(email_item, client_obj):
+                    return client_obj.scan_email(
                         email_id="batch",
                         sender=email_item["from"],
                         subject=email_item["subject"],
@@ -250,7 +253,7 @@ with tab_dashboard:
                     ), email_item
 
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                    futures = {executor.submit(analyze_task, e): e for e in parsed_emails}
+                    futures = {executor.submit(analyze_task, e, client): e for e in parsed_emails}
                     
                     for idx, future in enumerate(as_completed(futures)):
                         analysis, email_item = future.result()
