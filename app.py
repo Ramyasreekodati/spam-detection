@@ -9,11 +9,10 @@ from src.frontend.services.api_client import APIClient
 # Load ENV & Configuration
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
 # Initialize API Client
-if "api_client" not in st.session_state:
-    st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
+st.session_state.api_client = APIClient(BACKEND_URL, API_KEY)
 
 # Page Config
 st.set_page_config(page_title="AI Agentic Security Dashboard", layout="wide", page_icon="🛡️")
