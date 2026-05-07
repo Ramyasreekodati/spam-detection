@@ -12,15 +12,15 @@ logger = logging.getLogger("AIService")
 class AIService:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        # Fallback for Streamlit Cloud Secrets
-        if not self.api_key:
-            try:
-                import streamlit as st
-                if "GEMINI_API_KEY" in st.secrets:
-                    self.api_key = st.secrets["GEMINI_API_KEY"]
-            except:
-                pass
         
+        # Priority: Streamlit Secrets
+        try:
+            import streamlit as st
+            if "GEMINI_API_KEY" in st.secrets:
+                self.api_key = st.secrets["GEMINI_API_KEY"]
+        except:
+            pass
+            
         if self.api_key:
             self.api_key = self.api_key.strip().replace('"', '').replace("'", "")
             
@@ -30,12 +30,12 @@ class AIService:
 
     def _initialize_model(self):
         try:
-            if self.api_key:
+            if self.api_key and len(self.api_key) > 10:
                 genai.configure(api_key=self.api_key)
                 self.model = genai.GenerativeModel('gemini-flash-latest')
                 logger.info("✨ AI Engine Initialized Successfully")
             else:
-                self.init_error = "GEMINI_API_KEY is missing or empty."
+                self.init_error = "GEMINI_API_KEY is missing or invalid."
                 logger.warning(f"⚠️ {self.init_error}")
         except Exception as e:
             self.init_error = f"AI Initialization Error: {str(e)}"
