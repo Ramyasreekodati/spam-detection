@@ -20,8 +20,12 @@ class AIService:
                     self.api_key = st.secrets["GEMINI_API_KEY"]
             except:
                 pass
-                
+        
+        if self.api_key:
+            self.api_key = self.api_key.strip().replace('"', '').replace("'", "")
+            
         self.model = None
+        self.init_error = None
         self._initialize_model()
 
     def _initialize_model(self):
@@ -31,9 +35,11 @@ class AIService:
                 self.model = genai.GenerativeModel('gemini-flash-latest')
                 logger.info("✨ AI Engine Initialized Successfully")
             else:
-                logger.warning("⚠️ GEMINI_API_KEY missing. AI features will be disabled.")
+                self.init_error = "GEMINI_API_KEY is missing or empty."
+                logger.warning(f"⚠️ {self.init_error}")
         except Exception as e:
-            logger.error(f"💥 AI Initialization Error: {e}")
+            self.init_error = f"AI Initialization Error: {str(e)}"
+            logger.error(f"💥 {self.init_error}")
 
     def _clean_json_response(self, raw_text: str) -> Optional[Dict[str, Any]]:
         try:
@@ -55,7 +61,9 @@ class AIService:
 
     async def analyze(self, text: str, history: str = "", retries: int = 2) -> Dict[str, Any]:
         if not self.model:
-            return FallbackEngine.analyze(text)
+            fallback = FallbackEngine.analyze(text)
+            fallback["agentNotes"] = f"⚠️ {self.init_error or 'AI Service Busy'} | {fallback['agentNotes']}"
+            return fallback
 
         prompt = f"""
         ROLE: Lead Coordinator for a Multi-Agent Security Audit Team.

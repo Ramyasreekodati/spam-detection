@@ -54,9 +54,19 @@ class FallbackEngine:
             findings["bankAccounts"] = [] # Treat as tracking IDs if no context
         
         # --- Risk Scoring Calculation ---
+        # 1. Critical Scams (High Weight)
+        bank_scams = re.findall(r'(bank|account|locked|suspended|verify|security|update|login|kyc|card)', text, re.I)
+        urgency_patterns = re.findall(r'(immediately|asap|urgent|action required|within 24 hours|limited time)', text, re.I)
+        shortened_links = re.findall(r'(bit\.ly|t\.co|tinyurl|goo\.gl|shorturl|is\.gd|buff\.ly)', text, re.I)
+
+        # 2. Heuristic Scoring Logic
         score = 0
+        if bank_scams and (urgency_patterns or shortened_links):
+            score += 70 # Very high risk for bank + urgency/shortlink
         
-        # Weighted Keywords
+        score += len(bank_scams) * 5
+        score += len(urgency_patterns) * 10
+        score += len(shortened_links) * 20
         score += len(findings["suspiciousKeywords"]) * 8
         
         # Capped Link Penalty (Fix 1)
@@ -92,9 +102,11 @@ class FallbackEngine:
         
         # Detailed Reasoning for Transparency
         triggers = []
-        if findings["suspiciousKeywords"]: triggers.append(f"Suspicious Keywords: {', '.join(findings['suspiciousKeywords'])}")
-        if findings["phishingLinks"]: triggers.append(f"Links Found: {len(findings['phishingLinks'])}")
-        if findings["phoneNumbers"]: triggers.append(f"Phone Numbers: {len(findings['phoneNumbers'])}")
+        if bank_scams: triggers.append(f"Banking Keywords: {len(bank_scams)}")
+        if urgency_patterns: triggers.append(f"Urgency Patterns: {len(urgency_patterns)}")
+        if shortened_links: triggers.append(f"Shortened/Obfuscated Links: {len(shortened_links)}")
+        if findings["suspiciousKeywords"]: triggers.append(f"Keywords: {len(findings['suspiciousKeywords'])}")
+        if findings["phoneNumbers"]: triggers.append(f"Phones: {len(findings['phoneNumbers'])}")
         if findings["upiIds"]: triggers.append(f"UPI IDs: {len(findings['upiIds'])}")
         if findings["bankAccounts"]: triggers.append(f"Bank Accounts: {len(findings['bankAccounts'])}")
         
