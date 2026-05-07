@@ -337,6 +337,15 @@ with tab_assistant:
                     st.markdown(f"**Reasoning:** {data.get('agentNotes', 'No additional notes.')}")
                     st.markdown("**Evidence Found:**")
                     st.json(data.get('extractedIntelligence', {}))
+
+                    # Add to history for metrics and dashboard feed
+                    st.session_state.emails.append({
+                        "id": len(st.session_state.emails),
+                        "subject": "Manual Analysis",
+                        "from": "Direct Input",
+                        "body": user_input[:500],
+                        "analysis": data
+                    })
                 else:
                     st.error(data["error"])
         else: st.warning("Please enter some text.")
