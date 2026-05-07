@@ -238,7 +238,7 @@ with tab_dashboard:
                         })
 
                 # 2. Parallel AI Analysis
-                add_log(f"Starting Multi-Agent Parallel Audit (2 workers)...")
+                add_log(f"Starting Multi-Agent Serial Audit (Rate-Limited)...")
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -253,7 +253,7 @@ with tab_dashboard:
                         body=email_item["body"][:2000]
                     ), email_item
 
-                with ThreadPoolExecutor(max_workers=2) as executor:
+                with ThreadPoolExecutor(max_workers=1) as executor:
                     futures = {executor.submit(analyze_task, e, client): e for e in parsed_emails}
                     
                     for idx, future in enumerate(as_completed(futures)):
@@ -266,6 +266,9 @@ with tab_dashboard:
                                 "confidence": 0, "agentNotes": analysis['error'], "agentReports": [],
                                 "extractedIntelligence": {}, "source": "TIMEOUT"
                             }
+                        
+                        # Add a small delay to avoid hitting the 15 RPM limit on Gemini Free Tier
+                        time.sleep(1.5)
                         
                         st.session_state.emails.append({
                             "id": len(st.session_state.emails),
